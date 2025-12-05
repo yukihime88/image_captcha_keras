@@ -97,6 +97,12 @@ Model CNN memiliki fitur:
    - Model checkpointing (menyimpan model terbaik)
    - Reduksi learning rate pada plateau
 
+## Contoh Gambar
+
+Sistem ini dirancang untuk bekerja dengan gambar CAPTCHA seperti contoh berikut:
+
+![Contoh CAPTCHA](gambar.jpg)
+
 ## Penggunaan
 
 ### Pelatihan

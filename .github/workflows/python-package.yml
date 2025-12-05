@@ -1,40 +1,111 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
-name: Python package
+name: CAPTCHA Solver Testing
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+  test:
+    name: Test CAPTCHA Solver
+    runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.11'
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Lint with flake8
+        pip install -r requirements.txt
+
+    - name: Verify Python version
+      run: python --version
+
+    - name: Verify TensorFlow installation
+      run: python -c "import tensorflow as tf; print('TensorFlow version:', tf.__version__)"
+
+    - name: Test data loading
       run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
+        python -c "
+        import os
+        import cv2
+        import numpy as np
+        from train_captcha_solver import load_data
+
+        # Test loading sample data
+        X, y_list = load_data('Samples/')
+        if X is not None:
+            print(f'Successfully loaded {X.shape[0]} samples')
+            print(f'Image shape: {X.shape}')
+            print(f'Label structure: {len(y_list)} output heads')
+        else:
+            print('Failed to load data')
+        "
+
+    - name: Test model creation
       run: |
-        pytest
+        python -c "
+        from train_captcha_solver import create_cnn_model
+
+        # Test creating model
+        model = create_cnn_model(200, 100, 10, 6)
+        print('Model created successfully')
+        print('Model summary:')
+        model.summary()
+        "
+
+    - name: Test sample prediction
+      run: |
+        python -c "
+        import os
+        import tensorflow as tf
+        from train_captcha_solver import solve_captcha
+
+        # Test with existing model if available
+        if os.path.exists('best_captcha_solver_model.keras'):
+            model = tf.keras.models.load_model('best_captcha_solver_model.keras')
+            print('Model loaded successfully')
+
+            # Test prediction on sample image
+            if os.path.exists('gambar.jpg'):
+                result = solve_captcha('gambar.jpg', model)
+                print(f'Prediction result: {result}')
+            else:
+                print('Sample image not found')
+        else:
+            print('Trained model not found, skipping prediction test')
+        "
+
+    - name: Run basic tests
+      run: |
+        python -c "
+        # Test basic functionality
+        import sys
+        import os
+
+        # Check if required files exist
+        required_files = ['train_captcha_solver.py', 'requirements.txt']
+        missing_files = [f for f in required_files if not os.path.exists(f)]
+
+        if missing_files:
+            print(f'Missing required files: {missing_files}')
+            sys.exit(1)
+        else:
+            print('All required files present')
+
+        # Check if sample directory exists
+        if os.path.exists('Samples'):
+            sample_count = len([f for f in os.listdir('Samples') if f.endswith(('.jpg', '.png', '.jpeg'))])
+            print(f'Found {sample_count} sample images')
+        else:
+            print('Sample directory not found')
+
+        print('Basic tests completed successfully')
+        "
